@@ -25,7 +25,10 @@ public final class OperationLogStore {
     }
 
     public static File getDataDirectory() {
-        File dir = new File(System.getProperty("user.home"), ".gsl5");
+        // GSL5 CLI fork: honor -Dgsl5.data.dir so the audit store can live inside a task directory
+        // (wrapper passes <task>/logs); default stays ~/.gsl5 for GUI users.
+        File dir = new File(System.getProperty("gsl5.data.dir",
+                new File(System.getProperty("user.home"), ".gsl5").getPath()));
         if (!dir.isDirectory() && !dir.mkdirs()) {
             Log.error("OperationLogStore: cannot mkdir " + dir.getAbsolutePath());
         }
