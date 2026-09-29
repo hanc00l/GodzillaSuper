@@ -1,0 +1,60 @@
+#!/bin/bash
+# cli/gsl5 — GSL5 CLI real entry. Task semantics = chdir (docs/CLI化改造实施方案.md §4.3).
+#
+# usage: gsl5 [--task NAME] [--tasks-root DIR] [--format json|text] [--timeout SEC] <command> ...
+#   task priority: --task flag > GSL5_TASK env > "default"; one task = one isolated data.db.
+# env: GSL5_TASK, GSL5_TASKS_ROOT, GSL5_JAVA (java binary), GSL5_JAVA_OPTS (default adds headless)
+set -u
+
+DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)"
+JAR="$DIR/gsl5.jar"
+[ -f "$JAR" ] || { echo "[gsl5] missing $JAR — run cli/build-cli.sh first" >&2; exit 2; }
+JAVA_BIN="${GSL5_JAVA:-java}"
+
+ROOT="${GSL5_TASKS_ROOT:-$PWD/tasks}"
+TASK=""   # explicit --task only; effective task resolved below
+ARGS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --task) TASK="${2:-}"; shift 2 ;;
+    --task=*) TASK="${1#--task=}"; shift ;;
+    --tasks-root) ROOT="${2:-}"; shift 2 ;;
+    --tasks-root=*) ROOT="${1#--tasks-root=}"; shift ;;
+    *) ARGS+=("$1"); shift ;;
+  esac
+done
+# effective task: --task > GSL5_TASK env > "default"; resolved value is passed to the JVM as
+# -Dgsl5.task so the CLI always reports/uses the same task that chose the directory.
+TASK_EFF="${TASK:-${GSL5_TASK:-default}}"
+[ -n "$TASK_EFF" ] || TASK_EFF="default"
+# task name must be a single safe path component (no traversal / nesting / separators)
+case "$TASK_EFF" in
+  *..*|*/*|*\\*)
+    echo "[gsl5] refuse: invalid task name '$TASK_EFF' (must not contain '..', '/' or '\\')" >&2
+    exit 2 ;;
+esac
+
+TASK_DIR="$ROOT/$TASK_EFF"
+mkdir -p "$TASK_DIR/GodzillaCache" "$TASK_DIR/logs" || { echo "[gsl5] cannot mkdir $TASK_DIR" >&2; exit 2; }
+cd "$TASK_DIR" || exit 2
+
+# uniqueness guard: data.db must never be a symlink (one task = one physical DB)
+if [ -L data.db ]; then
+  echo "[gsl5] refuse: $TASK_DIR/data.db is a symlink (task isolation violated)" >&2
+  exit 2
+fi
+# L4 guard: WAL is unreliable on network filesystems — refuse them
+FSTYPE="$(stat -f -c %T . 2>/dev/null || echo unknown)"
+case "$FSTYPE" in
+  nfs|cifs|smb|smb2|ncp|afs|9p)
+    echo "[gsl5] refuse: task directory on network filesystem ($FSTYPE) is WAL-unsafe" >&2
+    exit 2 ;;
+esac
+# shared profile templates live once at <tasks-root>/shared/profile (file-level share, not DB)
+if [ ! -e profile ] && [ -d "$ROOT/shared/profile" ]; then
+  ln -s "$(realpath --relative-to="$TASK_DIR" "$ROOT/shared/profile")" profile 2>/dev/null || true
+fi
+
+exec "$JAVA_BIN" ${GSL5_JAVA_OPTS:--Djava.awt.headless=true} \
+  -Dgsl5.task="$TASK_EFF" -Dgsl5.tasks.root="$ROOT" -Dgsl5.data.dir="$TASK_DIR/logs" \
+  -jar "$JAR" cli "${ARGS[@]}"

@@ -1,5 +1,10 @@
 # GSL5 — Godzilla Super Loader 5
 
+> **本仓库是 GSL5 的 CLI 化 fork**：在保留上游全部功能（GUI / MCP）的前提下，新增命令行入口 `gsl5`，作为 agent 自动化与人工调试的单一能力源。
+> 📖 **CLI 使用文档：[README-CLI.md](README-CLI.md)**（构建、命令参考、task 隔离、代理、退出码契约、FAQ）。
+> 设计与实施方案见 [docs/](docs/)，开发准则见 [AGENTS.md](AGENTS.md)。
+> 以下为原上游 README（未改动；其中「编译与构建」一节的手工 javac 流程在本 fork 中已被 Maven 取代，见 README-CLI.md）。
+
 ##BUG反馈群
 
 
