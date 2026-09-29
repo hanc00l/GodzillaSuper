@@ -34,6 +34,7 @@ cli/gsl5.jar
 
 # Runtime state & credentials — never commit (AGENTS.md §2.4)
 .mcp.json
+mcp.json
 data.db
 data.db-journal
 data.db-wal
