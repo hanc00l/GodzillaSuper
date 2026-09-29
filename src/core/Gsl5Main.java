@@ -11,6 +11,13 @@ package core;
 public class Gsl5Main {
 
     public static void main(String[] args) {
+        if (args != null && args.length >= 1 && "cli".equals(args[0])) {
+            System.setProperty("java.awt.headless", "true");
+            String[] rest = new String[args.length - 1];
+            System.arraycopy(args, 1, rest, 0, rest.length);
+            System.exit(shells.plugins.generic.CliMain.run(rest));
+            return;
+        }
         if (args != null && args.length >= 1 && "mcp".equals(args[0])) {
             System.setProperty("java.awt.headless", "true");
             startMcp(args);

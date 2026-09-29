@@ -3639,4 +3639,19 @@ public class McpService implements Plugin {
         ex.getResponseBody().write(bytes);
         ex.close();
     }
+
+    // ==================== CLI SEAM (GSL5 CLI fork, appended) ====================
+
+    /** CLI seam: transport-free tool dispatch. Returns the raw JSON-RPC response string. */
+    public String cliCall(String name, java.util.Map<String, Object> args) {
+        java.util.Map<String, Object> params = new java.util.HashMap<String, Object>();
+        params.put("name", name);
+        params.put("arguments", args == null ? new java.util.HashMap<String, Object>() : args);
+        return toolsCall(params, 1);
+    }
+
+    /** CLI seam: raw tools/list JSON for the CLI doctor coverage check and the `tools` catalog. */
+    public String cliToolsListRaw() {
+        return toolsList(1);
+    }
 }
