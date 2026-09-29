@@ -658,6 +658,15 @@ public class Db {
         try {
             Class.forName("org.sqlite.JDBC");
             dbConn = DriverManager.getConnection("jdbc:sqlite:data.db");
+            // GSL5 CLI fork: multi-process concurrency hardening (WAL readers never block; busy_timeout
+            // turns rare write collisions into a bounded wait instead of an immediate SQLITE_BUSY).
+            try (java.sql.Statement pragmaStmt = dbConn.createStatement()) {
+                pragmaStmt.execute("PRAGMA journal_mode=WAL");
+                pragmaStmt.execute("PRAGMA busy_timeout=5000");
+                pragmaStmt.execute("PRAGMA synchronous=NORMAL");
+            } catch (Exception pragmaEx) {
+                Log.error(pragmaEx);
+            }
             if (!tableExists("shell")) {
                 dbConn.createStatement().execute("CREATE TABLE shell ( id text NOT NULL,  url TEXT NOT NULL,  password TEXT NOT NULL,  secretKey TEXT NOT NULL,  payload TEXT NOT NULL,  cryption TEXT NOT NULL,  encoding TEXT NOT NULL,  headers TEXT NOT NULL,  reqLeft TEXT NOT NULL,  reqRight TEXT NOT NULL,  connTimeout integer NOT NULL,  readTimeout integer NOT NULL,  proxyType TEXT NOT NULL,  proxyHost TEXT NOT NULL,  proxyPort TEXT NOT NULL,  remark TEXT NOT NULL,  note TEXT NOT NULL,  createTime TEXT NOT NULL,  updateTime text NOT NULL,  PRIMARY KEY (id))");
             }
