@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GSL5 (GodzillaSuper CLI fork) Maven build.
+
+  Baseline per AGENTS.md:
+    * JDK 8 source/target only (do NOT raise).
+    * Mixed-encoding source tree: default compile is UTF-8; the 8 legacy GBK files
+      (AGENTS.md §1.4) are compiled in a second execution bound to process-classes
+      so it is guaranteed to run after default-compile.
+    * Delivery is an uber-jar (all dependencies bundled, finalName=gsl5).
+    * Third-party classes are provided by com.gsl5.thirdparty:origin-libs, extracted
+      once from the upstream Release jar (origin-jar/gsl5.jar, never committed):
+      extract ALL classes, then delete every class that has a .java in src
+      (zero-overlap, incl. inner classes $*.class; META-INF/services kept for JDBC
+      driver registration; the 8 GBK-file classes stay as signature stubs and are
+      overwritten by the second compile pass; see AGENTS.md §1.2/§1.4),
+      then `mvn install:install-file -DgroupId=com.gsl5.thirdparty
+            -DartifactId=origin-libs -Dversion=3.1.8 -Dpackaging=jar`.
+      Proven bundled versions (upstream pom.properties): guava 27.1-jre, javassist
+      3.28.0-GA, sqlite-jdbc 3.36.0.3, snakeyaml, postgresql, okhttp3/okio/kotlin,
+      hutool, flatlaf, rsyntaxtextarea, pecoff4j 0.3.2, forms_rt, httpProxy, ojdbc...
+  Local sandbox note: if ~/.m2 is not writable, add
+    -Dmaven.repo.local=$PWD/.build-tmp/m2repo
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>com.gsl5</groupId>
+  <artifactId>gsl5</artifactId>
+  <version>3.1.8</version>
+  <packaging>jar</packaging>
+  <name>GSL5 - Godzilla Super Loader 5 (CLI fork)</name>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.compiler.source>1.8</maven.compiler.source>
+    <maven.compiler.target>1.8</maven.compiler.target>
+    <final.name>gsl5</final.name>
+  </properties>
+
+  <dependencies>
+    <!--
+      Proven third-party set extracted from the upstream Release jar (see header).
+      Kept as ONE artifact on purpose: upstream bundles exact versions (some without
+      Maven metadata), and per-dependency Central pins risk API drift.
+    -->
+    <dependency>
+      <groupId>com.gsl5.thirdparty</groupId>
+      <artifactId>origin-libs</artifactId>
+      <version>3.1.8</version>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <sourceDirectory>src</sourceDirectory>
+    <finalName>${final.name}</finalName>
+
+    <resources>
+      <resource>
+        <directory>src</directory>
+        <includes>
+          <!-- non-java classpath assets; paths must stay identical inside the jar -->
+          <include>images/**</include>
+          <include>data/**</include>
+          <include>META-INF/**</include>
+          <include>godzilla_*.properties</include>
+          <include>**/*.classs</include>
+          <!-- NOTE: src/shells/plugins/java/assets/asm/** loose .class files are build
+               INPUT for assets/asm.jar (shipped via **/*.jar) — upstream does NOT put
+               them under shells/.../asm/ paths in the jar; shipping them breaks
+               CoreClassLoader ("wrong name" NoClassDefFoundError). Do not add
+               **/*.class here. -->
+          <include>**/*.jar</include><!-- dm.jar / kingbase.jar / asm.jar payload assets -->
+          <include>**/*.svg</include>
+          <include>**/*.properties</include>
+          <include>**/*.cs</include>
+          <include>**/*.aspx</include>
+          <include>**/*.ashx</include>
+          <include>**/*.soap</include>
+          <include>**/*.profile</include>
+          <include>**/*.javax</include>
+          <include>**/*.bin</include>
+          <include>**/*.dll</include>
+          <include>**/*.exe</include>
+        </includes>
+      </resource>
+    </resources>
+
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.11.0</version>
+        <configuration>
+          <source>1.8</source>
+          <target>1.8</target>
+          <encoding>UTF-8</encoding>
+        </configuration>
+        <executions>
+          <!-- default-compile (UTF-8) excludes the legacy GBK sources -->
+          <execution>
+            <id>default-compile</id>
+            <phase>compile</phase>
+            <goals><goal>compile</goal></goals>
+            <configuration>
+              <compilerArgs>
+                <!-- disable javac implicit source compilation: same-package refs to GBK-excluded
+                     files (ShellRSFilePanel, ChooseEscapes) would otherwise be pulled into this
+                     UTF-8 pass and die on unmappable characters. They resolve from origin-libs
+                     (classpath) here and are overwritten by the GBK pass below. -->
+                <arg>-sourcepath</arg>
+                <arg>${project.build.directory}/empty-sourcepath</arg>
+              </compilerArgs>
+              <excludes>
+                <exclude>shells/plugins/java/ClassLoader.java</exclude>
+                <exclude>shells/plugins/java/OaTools.java</exclude>
+                <exclude>shells/plugins/generic/Useradd.java</exclude>
+                <exclude>shells/plugins/generic/ISECUREController.java</exclude>
+                <exclude>shells/plugins/csharp/OaTools.java</exclude>
+                <exclude>core/MigrateDb.java</exclude>
+                <exclude>core/ui/component/ShellRSFilePanel.java</exclude>
+                <exclude>core/shellprocessor/jspescapes/ChooseEscapes.java</exclude>
+              </excludes>
+            </configuration>
+          </execution>
+          <!-- GBK legacy sources, guaranteed after default-compile -->
+          <execution>
+            <id>compile-gbk</id>
+            <phase>process-classes</phase>
+            <goals><goal>compile</goal></goals>
+            <configuration>
+              <encoding>GBK</encoding>
+              <includes>
+                <include>shells/plugins/java/ClassLoader.java</include>
+                <include>shells/plugins/java/OaTools.java</include>
+                <include>shells/plugins/generic/Useradd.java</include>
+                <include>shells/plugins/generic/ISECUREController.java</include>
+                <include>shells/plugins/csharp/OaTools.java</include>
+                <include>core/MigrateDb.java</include>
+                <include>core/ui/component/ShellRSFilePanel.java</include>
+                <include>core/shellprocessor/jspescapes/ChooseEscapes.java</include>
+              </includes>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <version>3.5.1</version>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals><goal>shade</goal></goals>
+            <configuration>
+              <createDependencyReducedPom>false</createDependencyReducedPom>
+              <filters>
+                <filter>
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                    <exclude>module-info.class</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+              <transformers>
+                <!-- merge META-INF/services so JDBC drivers self-register -->
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <manifestEntries>
+                    <Main-Class>core.Gsl5Main</Main-Class>
+                  </manifestEntries>
+                </transformer>
+              </transformers>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

@@ -21,6 +21,27 @@ build/
 target/
 out/
 
+# Upstream reference jar (local only, never commit)
+origin-jar/
+.build-tmp/
+
 # OS
 .DS_Store
 Thumbs.db
+
+# staged CLI jar (build artifact of build-cli.sh)
+cli/gsl5.jar
+
+# Runtime state & credentials — never commit (AGENTS.md §2.4)
+.mcp.json
+data.db
+data.db-journal
+data.db-wal
+data.db-shm
+operation_audit.db
+operation_audit.db-journal
+operation_audit.db-wal
+operation_audit.db-shm
+profile/
+tasks/
+*.write.lock
