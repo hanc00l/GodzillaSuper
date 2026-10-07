@@ -141,19 +141,28 @@ public class ShellEntity {
                     } else {
                         Log.error(EasyI18N.getI18nString("有效载荷初始化失败!"));
                         this.lastInitError = "有效载荷初始化失败";
-                        GOptionPane.showMessageDialog((Component)null, "有效载荷初始化失败!");
+                        // headless 守卫：CLI 模式（Gsl5Main 强制 java.awt.headless=true）下
+                        // 弹窗必抛 HeadlessException，掩盖真实错误（round-10 b-01 实证：
+                        // godzilla 注册探活真实原因是目标不可达，全程只见 HeadlessException）
+                        if (!java.awt.GraphicsEnvironment.isHeadless()) {
+                            GOptionPane.showMessageDialog((Component)null, "有效载荷初始化失败!");
+                        }
                     }
                 } else {
                     Log.error(EasyI18N.getI18nString("加密器初始化失败!"));
                     this.lastInitError = "加密器初始化失败";
-                    GOptionPane.showMessageDialog((Component)null, "加密器初始化失败!");
+                    if (!java.awt.GraphicsEnvironment.isHeadless()) {
+                        GOptionPane.showMessageDialog((Component)null, "加密器初始化失败!");
+                    }
                 }
 
                 return state;
             }
         } catch (Throwable var3) {
             this.lastInitError = var3.getClass().getName() + ": " + var3.getMessage();
-            GOptionPane.showThrowableMessageDialog((Component)null, "初始化shell时发生异常", var3);
+            if (!java.awt.GraphicsEnvironment.isHeadless()) {
+                GOptionPane.showThrowableMessageDialog((Component)null, "初始化shell时发生异常", var3);
+            }
             return state;
         }
     }
