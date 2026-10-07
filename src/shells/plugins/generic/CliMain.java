@@ -72,6 +72,9 @@ public final class CliMain {
     // ============================================================ ENTRY
 
     public static int run(String[] args) {
+        // CLI 模式标记必须先于任何 Db 类加载（CliPaths 据此锚定 tasks-root 解析，
+        // 修复 list/exec 因子命令解析路径不一致落不同 data.db 的 P1 bug）
+        System.setProperty("gsl5.cli", "true");
         try {
             proto = new PrintStream(new FileOutputStream(FileDescriptor.out), true, "UTF-8");
         } catch (Exception e) {
@@ -127,6 +130,13 @@ public final class CliMain {
         String cmd = args[0];
         if (COMMANDS.containsKey(cmd)) {
             CmdSpec spec = COMMANDS.get(cmd);
+            // 子命令 --help/-h：打印该命令用法（修复「flag --help requires a value」）
+            for (int i = 1; i < args.length; i++) {
+                if ("--help".equals(args[i]) || "-h".equals(args[i])) {
+                    usageFor(cmd, spec);
+                    return 0;
+                }
+            }
             Map<String, Object> params = parseFlags(spec, args);
             return callTool(spec.tool, params);
         }
@@ -777,6 +787,19 @@ public final class CliMain {
         sb.append("  task list|path         # task management (default task: default)\n");
         sb.append("  version | doctor       # build info / self-check\n");
         sb.append("  --flags marked * are required. exit codes: 0 ok / 2 usage / 3 target / 4 timeout / 5 lock\n");
+        proto.print(sb);
+        proto.flush();
+    }
+
+    /** 子命令级用法（gsl5 <cmd> --help）：列出该命令全部 flag，* 为必填。 */
+    private static void usageFor(String cmd, CmdSpec spec) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("usage: gsl5 [--task NAME] [--tasks-root DIR] ").append(cmd);
+        for (String[] row : spec.params) {
+            sb.append(" --").append(row[0]);
+            if (R.equals(row[2])) sb.append('*');
+        }
+        sb.append("\n  tool: ").append(spec.tool).append("（完整参数说明：gsl5 tools ").append(spec.tool).append("）\n");
         proto.print(sb);
         proto.flush();
     }

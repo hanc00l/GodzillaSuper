@@ -29,7 +29,10 @@ import util.functions;
 public class Db {
     private static Connection dbConn;
     private static final String Drivde = "org.sqlite.JDBC";
-    private static final String DB_URL = "jdbc:sqlite:data.db";
+    // GSL5 CLI fork：DB 路径统一经 CliPaths 解析（CLI 模式锚定 <tasks-root>/<task>/data.db，
+    // 非 CLI 模式等价于旧的 user.dir 相对路径），修复 list/exec 因子命令解析路径不一致
+    // 落到不同 data.db 的 P1 bug。McpService.getDbPath() 经反射读本字段，保持语义同步。
+    private static final String DB_URL = CliPaths.dbUrl();
     private static final String CREATE_SHELL_TABLE = "CREATE TABLE \"shell\" ( \"id\" text NOT NULL,  \"url\" TEXT NOT NULL,  \"password\" TEXT NOT NULL,  \"secretKey\" TEXT NOT NULL,  \"payload\" TEXT NOT NULL,  \"cryption\" TEXT NOT NULL,  \"encoding\" TEXT NOT NULL,  \"headers\" TEXT NOT NULL,  \"reqLeft\" TEXT NOT NULL,  \"reqRight\" TEXT NOT NULL,  \"connTimeout\" integer NOT NULL,  \"readTimeout\" integer NOT NULL,  \"proxyType\" TEXT NOT NULL,  \"proxyHost\" TEXT NOT NULL,  \"proxyPort\" TEXT NOT NULL,  \"remark\" TEXT NOT NULL,  \"note\" TEXT NOT NULL,  \"createTime\" TEXT NOT NULL,  \"updateTime\" text NOT NULL,  PRIMARY KEY (\"id\"))";
     private static final String CREATE_SHELLENV_TABLE = "CREATE TABLE shellEnv (\"shellId\" text NOT NULL,\"key\" TEXT NOT NULL,\"value\" TEXT);";
     private static final String CREATE_PLUGIN_TABLE = "CREATE TABLE plugin (pluginJarFile TEXT NOT NULL,PRIMARY KEY (\"pluginJarFile\"))";

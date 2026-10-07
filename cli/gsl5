@@ -11,7 +11,15 @@ JAR="$DIR/gsl5.jar"
 [ -f "$JAR" ] || { echo "[gsl5] missing $JAR — run cli/build-cli.sh first" >&2; exit 2; }
 JAVA_BIN="${GSL5_JAVA:-java}"
 
-ROOT="${GSL5_TASKS_ROOT:-$PWD/tasks}"
+# 默认 tasks-root：平台任务工作区（含 tmp/ 目录）时落到 tmp/gsl5，避免在
+# 任务根目录制造游离 tasks/ 目录（round-11 实测 CWD 污染）；否则维持 $PWD/tasks。
+if [ -n "${GSL5_TASKS_ROOT:-}" ]; then
+  ROOT="$GSL5_TASKS_ROOT"
+elif [ -d "$PWD/tmp" ]; then
+  ROOT="$PWD/tmp/gsl5"
+else
+  ROOT="$PWD/tasks"
+fi
 TASK=""   # explicit --task only; effective task resolved below
 ARGS=()
 while [ $# -gt 0 ]; do

@@ -1544,7 +1544,25 @@ public class McpService implements Plugin {
     private ShellEntity getShell(Map<String, Object> a) {
         String sid = (String) a.get("shellId");
         ShellEntity sh = Db.getOneShell(sid);
-        if (sh == null) throw new RuntimeException("\u672a\u627e\u5230 Shell: " + sid);
+        if (sh == null) {
+            // 附带当前 task 可用 shell 清单（round-11：tasks-root 解析错位时
+            // 仅报「未找到 Shell」无指引，Agent 无法自救）
+            String available;
+            try {
+                java.util.Vector<java.util.Vector<String>> rows = Db.getAllShell();
+                StringBuilder sb = new StringBuilder();
+                for (int i = 1; i < rows.size(); i++) { // 第 0 行是表头
+                    if (sb.length() > 0) sb.append(", ");
+                    sb.append(rows.get(i).get(0));
+                }
+                available = sb.length() > 0 ? sb.toString() : "(empty)";
+            } catch (Exception e) {
+                available = "(read failed)";
+            }
+            throw new RuntimeException("\u672a\u627e\u5230 Shell: " + sid
+                    + "\uff1b\u5f53\u524d task \u53ef\u7528 shell: " + available
+                    + "\uff08\u5982\u6e05\u5355\u4e3a\u7a7a\u6216\u4e0d\u7b26\u5408\u9884\u671f\uff0c\u68c0\u67e5 --task/--tasks-root \u662f\u5426\u4e0e\u6ce8\u518c\u65f6\u4e00\u81f4\uff09");
+        }
         return sh;
     }
 
